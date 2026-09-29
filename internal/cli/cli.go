@@ -11,9 +11,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/adamsiwiec1/hfpacks/internal/hf"
-	"github.com/adamsiwiec1/hfpacks/internal/packs"
-	"github.com/adamsiwiec1/hfpacks/internal/proxy"
+	"github.com/openhat-security/hfpacks/internal/hf"
+	"github.com/openhat-security/hfpacks/internal/packs"
+	"github.com/openhat-security/hfpacks/internal/proxy"
 )
 
 const usage = `hfpacks - Hugging Face Hub → category SQLite packs (for runhug)

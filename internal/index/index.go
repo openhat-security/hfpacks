@@ -10,7 +10,7 @@ import (
 
 	_ "modernc.org/sqlite"
 
-	"github.com/adamsiwiec1/hfpacks/internal/hf"
+	"github.com/openhat-security/hfpacks/internal/hf"
 )
 
 // Index is a runhug-compatible models SQLite database.

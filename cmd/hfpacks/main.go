@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/adamsiwiec1/hfpacks/internal/cli"
+	"github.com/openhat-security/hfpacks/internal/cli"
 )
 
 func main() {

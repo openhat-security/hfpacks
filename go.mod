@@ -1,4 +1,4 @@
-module github.com/adamsiwiec1/hfpacks
+module github.com/openhat-security/hfpacks
 
 go 1.26.3
 

@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/adamsiwiec1/hfpacks/internal/hf"
-	"github.com/adamsiwiec1/hfpacks/internal/index"
+	"github.com/openhat-security/hfpacks/internal/hf"
+	"github.com/openhat-security/hfpacks/internal/index"
 )
 
 const (
