@@ -1,0 +1,13 @@
+# Binaries
+/bin/
+/dist/
+
+# Editor / OS
+.DS_Store
+*.swp
+.idea/
+.vscode/
+
+# Secrets (never commit)
+.env
+.env.*
