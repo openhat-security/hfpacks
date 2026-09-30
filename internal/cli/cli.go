@@ -19,9 +19,10 @@ import (
 const usage = `hfpacks - Hugging Face Hub → category SQLite packs (for runhug)
 
 usage:
-  hfpacks build [flags]     crawl Hub, write index-*.db + index-manifest.json
-  hfpacks categories        list category ids
-  hfpacks help              show this message
+  hfpacks build [flags]                    crawl Hub, write index-*.db + index-manifest.json
+  hfpacks upsert <org/model>... [flags]    fetch named models and upsert into a SQLite index
+  hfpacks categories                       list category ids
+  hfpacks help                             show this message
 
 build flags:
   -out string           output dir (default "dist/index")
@@ -38,6 +39,13 @@ build flags:
   -proxy-tries int      max proxies to try per Hub page (default 50; 0 = keep trying)
   -source-repo string   manifest source_repo (default openhat-security/runhug)
 
+upsert flags:
+  -db string            SQLite path (e.g. ~/.config/runhug/models.db)
+  -out string           pack dir (use with -category)
+  -category string      pack id under -out (text-generation, gguf, …)
+  -no-proxy / -token / -switch-every / -proxy-batch / -proxy-tries
+                        same as build (default db: ~/.config/runhug/models.db if present)
+
 proxy (automated, no manual per-run URL required):
   fetches a free proxy list (ProxyScrape US by default), shuffles, batches,
   and rotates — same idea as a ProxyPool.Next() loop. On failure, keep
@@ -50,6 +58,8 @@ examples:
   hfpacks build -out dist/index
   hfpacks build -proxy-tries 0 -switch-every 1
   hfpacks build -no-proxy -token $HF_TOKEN -categories text-generation,gguf
+  hfpacks upsert Qwen/Qwen3-8B -db ~/.config/runhug/models.db
+  hfpacks upsert meta-llama/Llama-3.2-3B-Instruct -out dist/index -category text-generation
   hfpacks categories
 `
 
@@ -67,6 +77,8 @@ func Run(args []string) error {
 	switch cmd {
 	case "build":
 		return runBuild(args)
+	case "upsert":
+		return runUpsert(args)
 	case "categories":
 		return runCategories(args)
 	case "help", "-h", "--help":

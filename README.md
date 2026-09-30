@@ -26,9 +26,27 @@ No `GEONODE_PROXY_URL` required for the default path.
 
 ```
 hfpacks build [flags]
+hfpacks upsert <org/model>... [flags]
 hfpacks categories
 hfpacks help
 ```
+
+### Upsert named models
+
+Fetch one or more Hub cards by id and insert/update rows in an existing SQLite index (runhug’s local `models.db` or a pack `index-*.db`):
+
+```bash
+# local runhug index (default if ~/.config/runhug/models.db exists)
+hfpacks upsert Qwen/Qwen3-8B -db ~/.config/runhug/models.db
+
+# into a category pack
+hfpacks upsert microsoft/Phi-4 -out dist/index -category text-generation
+
+# several at once
+hfpacks upsert Qwen/Qwen3-8B meta-llama/Llama-3.2-3B-Instruct -no-proxy
+```
+
+`InsertModel` is an SQL upsert (`ON CONFLICT DO UPDATE`), so re-running refreshes likes/downloads/tags.
 
 ### Proxy automation
 

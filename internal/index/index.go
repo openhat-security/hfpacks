@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	_ "modernc.org/sqlite"
@@ -111,4 +112,26 @@ func (idx *Index) SetMetadata(key, value string) error {
 		ON CONFLICT(key) DO UPDATE SET value = excluded.value
 	`, key, value)
 	return err
+}
+
+// HasModel reports whether repo id is already in the index.
+func (idx *Index) HasModel(id string) (bool, error) {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return false, nil
+	}
+	var one int
+	err := idx.db.QueryRow(`SELECT 1 FROM models WHERE id = ? LIMIT 1`, id).Scan(&one)
+	if err == sql.ErrNoRows {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+// Path returns the database file path.
+func (idx *Index) Path() string {
+	return idx.path
 }
