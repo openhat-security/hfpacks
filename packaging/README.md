@@ -20,7 +20,16 @@ Tagged releases (`v*`) run GoReleaser (`.github/workflows/release.yml`).
 
 Same as runhug: `NPM_TOKEN`, `PACKAGING_TOKEN` (or `HOMEBREW_TAP_TOKEN` / `SCOOP_TOKEN`), optional `WINGET_PAT`, `HF_TOKEN` for index-pack CI.
 
-Copy org secrets from the runhug repo settings, or use the same PAT with access to `homebrew-tap`, `scoop-bucket`, and `packages`.
+Copy org secrets from the **runhug** repo into **hfpacks** repo settings (same names). Without `PACKAGING_TOKEN`, GoReleaser publishes GitHub assets only and **skips** Homebrew/Scoop upload (`brew install` will fail until the cask is pushed).
+
+Required for full parity:
+
+| Secret | Purpose |
+|--------|---------|
+| `PACKAGING_TOKEN` | Push `Casks/hfpacks.rb` + Scoop manifest + apt/dnf Pages |
+| `NPM_TOKEN` | `npm i -g hfpacks` |
+| `HF_TOKEN` | Index pack CI on release |
+| `WINGET_PAT` | optional winget PRs |
 
 ## Cut a release
 
