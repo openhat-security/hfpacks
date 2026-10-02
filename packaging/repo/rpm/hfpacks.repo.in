@@ -1,0 +1,5 @@
+[hfpacks]
+name=hfpacks (GitHub Pages)
+baseurl=@REPO_URL@/rpm
+enabled=1
+gpgcheck=0

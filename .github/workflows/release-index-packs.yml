@@ -1,7 +1,7 @@
 # Build category SQLite index packs and upload them to a GitHub Release.
 # Triggers: release published, or manual workflow_dispatch (tag optional).
 #
-# Secrets: HF_TOKEN (recommended for Hub rate limits). GITHUB_TOKEN is provided.
+# Secrets: HF_TOKEN (required for CI Hub crawl — add on repo). GITHUB_TOKEN is provided.
 # Env: HFPACKS_INDEX_LIMIT / RUNHUG_INDEX_LIMIT caps rows per pack when set.
 name: Release index packs
 

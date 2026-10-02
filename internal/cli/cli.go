@@ -14,6 +14,7 @@ import (
 	"github.com/openhat-security/hfpacks/internal/hf"
 	"github.com/openhat-security/hfpacks/internal/packs"
 	"github.com/openhat-security/hfpacks/internal/proxy"
+	"github.com/openhat-security/hfpacks/internal/version"
 )
 
 const usage = `hfpacks - Hugging Face Hub → local index packs (producer for runhug)
@@ -23,6 +24,7 @@ usage:
   hfpacks export [flags]                   convert existing index-*.db → csv / parquet
   hfpacks upsert <org/model>... [flags]    fetch named models and upsert into a SQLite index
   hfpacks categories                       list category ids
+  hfpacks version                          print version
   hfpacks help                             show this message
 
 build flags:
@@ -88,6 +90,9 @@ func Run(args []string) error {
 		return runUpsert(args)
 	case "categories":
 		return runCategories(args)
+	case "version", "-v", "--version":
+		fmt.Printf("%s %s\n", version.Name, version.Version)
+		return nil
 	case "help", "-h", "--help":
 		fmt.Print(usage)
 		return nil

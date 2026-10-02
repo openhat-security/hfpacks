@@ -10,10 +10,28 @@ Proxy handling is automated like a `ProxyPool`: fetch a list → shuffle → kee
 
 ## Install
 
+**End users of search indexes** should use [runhug](https://github.com/openhat-security/runhug) (`runhug packs install`) — not this CLI.
+
+**Build / maintain packs:**
+
 ```bash
+# Homebrew (after a tagged release)
+brew install --cask openhat-security/tap/hfpacks
+
+# curl installer (macOS / Linux)
+curl -fsSL https://raw.githubusercontent.com/openhat-security/hfpacks/master/scripts/install.sh | bash
+
+# npm
+npm i -g hfpacks
+
+# Go
+go install github.com/openhat-security/hfpacks/cmd/hfpacks@latest
+
+# from source
 go build -o bin/hfpacks ./cmd/hfpacks
-# or: go install github.com/openhat-security/hfpacks/cmd/hfpacks@latest
 ```
+
+See [packaging/README.md](packaging/README.md) for apt, dnf, Scoop, winget, and AUR.
 
 ## Quick start
 

@@ -1,0 +1,32 @@
+# Packaging
+
+Release channels for **hfpacks** (mirrors [runhug](https://github.com/openhat-security/runhug) layout).
+
+| Channel | Install |
+|--------|---------|
+| GitHub Release | `curl -fsSL …/scripts/install.sh \| bash` |
+| Homebrew | `brew install --cask openhat-security/tap/hfpacks` |
+| apt | `curl -fsSL …/install-hfpacks-apt.sh \| sudo bash` (Pages: `openhat-security/packages`) |
+| dnf | `curl -fsSL …/install-hfpacks-dnf.sh \| sudo bash` |
+| AUR | `yay -S hfpacks-bin` (publish `packaging/aur/PKGBUILD` to AUR) |
+| Scoop | `scoop bucket add openhat …` then `scoop install hfpacks` |
+| winget | `winget install OpenHatSecurity.Hfpacks` (after manifest PR) |
+| npm | `npm i -g hfpacks` |
+| Go | `go install github.com/openhat-security/hfpacks/cmd/hfpacks@latest` |
+
+Tagged releases (`v*`) run GoReleaser (`.github/workflows/release.yml`).
+
+## Secrets (on `openhat-security/hfpacks`)
+
+Same as runhug: `NPM_TOKEN`, `PACKAGING_TOKEN` (or `HOMEBREW_TAP_TOKEN` / `SCOOP_TOKEN`), optional `WINGET_PAT`, `HF_TOKEN` for index-pack CI.
+
+Copy org secrets from the runhug repo settings, or use the same PAT with access to `homebrew-tap`, `scoop-bucket`, and `packages`.
+
+## Cut a release
+
+```bash
+./scripts/release.sh patch   # 0.2.0 → 0.2.1
+make release BUMP=minor
+```
+
+Pushing `v*` publishes CLI binaries. **Index SQLite packs** upload when the release is **published** (`release-index-packs.yml`).
