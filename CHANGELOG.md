@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-10-02
+
 ### Added
 - GoReleaser release (binaries, Homebrew, Scoop, deb/rpm, npm, winget); install docs.
 
