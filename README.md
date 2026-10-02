@@ -1,13 +1,18 @@
 # hfpacks
 
-Standalone CLI that crawls the Hugging Face Hub and writes **category SQLite index packs** compatible with [runhug](https://github.com/adamsiwiec1/runhug) (`index-*.db` + `index-manifest.json`).
+Standalone CLI that crawls the Hugging Face Hub and writes **local index packs**.
+[runhug](https://github.com/openhat-security/runhug) installs the SQLite packs from
+**this repo’s GitHub Releases** (`runhug init` / `runhug packs install` /
+`runhug update --packs`).
 
-Proxy handling is automated like a `ProxyPool`: fetch a list → shuffle → keep a batch → `Next()` on a schedule / on errors → refetch when exhausted. End users still only download packs via `runhug init` / `update --packs`.
+Proxy handling is automated like a `ProxyPool`: fetch a list → shuffle → keep a batch →
+`Next()` on a schedule / on errors → refetch when exhausted.
 
 ## Install
 
 ```bash
 go build -o bin/hfpacks ./cmd/hfpacks
+# or: go install github.com/openhat-security/hfpacks/cmd/hfpacks@latest
 ```
 
 ## Quick start
@@ -18,14 +23,29 @@ export HF_TOKEN=hf_…
 
 # proxies are fetched automatically (ProxyScrape US list by default)
 ./bin/hfpacks build -out dist/index
+
+# also emit csv + parquet alongside sqlite
+./bin/hfpacks build -out dist/index -format sqlite,csv,parquet
+
+# or export from existing .db files
+./bin/hfpacks export -out dist/index -format csv,parquet
 ```
 
-No `GEONODE_PROXY_URL` required for the default path.
+## Formats
+
+| Format | File | Who uses it |
+|--------|------|-------------|
+| **sqlite** (default) | `index-<cat>.db` + `index-manifest.json` | **runhug** (required contract) |
+| **csv** | `index-<cat>.csv` | spreadsheets / other tools |
+| **parquet** | `index-<cat>.parquet` | analytics / data pipelines |
+
+runhug only downloads SQLite assets from Releases. CSV/parquet are optional exports.
 
 ## Usage
 
 ```
 hfpacks build [flags]
+hfpacks export [flags]
 hfpacks upsert <org/model>... [flags]
 hfpacks categories
 hfpacks help
@@ -33,45 +53,19 @@ hfpacks help
 
 ### Upsert named models
 
-Fetch one or more Hub cards by id and insert/update rows in an existing SQLite index (runhug’s local `models.db` or a pack `index-*.db`):
-
 ```bash
-# local runhug index (default if ~/.config/runhug/models.db exists)
 hfpacks upsert Qwen/Qwen3-8B -db ~/.config/runhug/models.db
-
-# into a category pack
 hfpacks upsert microsoft/Phi-4 -out dist/index -category text-generation
-
-# several at once
-hfpacks upsert Qwen/Qwen3-8B meta-llama/Llama-3.2-3B-Instruct -no-proxy
 ```
-
-`InsertModel` is an SQL upsert (`ON CONFLICT DO UPDATE`), so re-running refreshes likes/downloads/tags.
 
 ### Proxy automation
 
 | Mode | How |
 |------|-----|
-| **Default** | GET `PROXY_LIST_URL` (default: ProxyScrape free US `ip:port` list), shuffle, keep `-proxy-batch` (10), rotate every `-switch-every` Hub calls (60). On 429/403/transport error, advance to next proxy (up to 3 attempts per page). When the batch is empty, fetch again. |
+| **Default** | GET `PROXY_LIST_URL` (default: ProxyScrape free US `ip:port` list), shuffle, keep `-proxy-batch` (10), rotate every `-switch-every` Hub calls (60). On 429/403/transport error, advance to next proxy. When the batch is empty, fetch again. |
 | **Geonode auth on list IPs** | Set `GEONODE_USER` / `GEONODE_PASS` — applied to each scraped `ip:port`. |
-| **Geonode gateway** | Set `GEONODE_PROXY_URL=http://user:pass@host:port` — expanded into `-proxy-batch` session URLs (`user-session-N`) so the pool still rotates. |
+| **Geonode gateway** | Set `GEONODE_PROXY_URL=http://user:pass@host:port` — expanded into `-proxy-batch` session URLs. |
 | **Direct** | `-no-proxy` (CI / low volume with `HF_TOKEN`). |
-
-```bash
-# custom list feed
-export PROXY_LIST_URL='https://…'
-
-# Geonode username/password on scraped IPs
-export GEONODE_USER=…
-export GEONODE_PASS=…
-
-# or sticky Geonode gateway with session rotation
-export GEONODE_PROXY_URL='http://USER:PASS@proxy.geonode.io:9000'
-
-./bin/hfpacks build -out dist/index -switch-every 60 -proxy-batch 10 -proxy-tries 50
-# keep trying forever on flaky free proxies:
-./bin/hfpacks build -out dist/index -proxy-tries 0
-```
 
 ### Flags
 
@@ -81,11 +75,9 @@ export GEONODE_PROXY_URL='http://USER:PASS@proxy.geonode.io:9000'
 | `-categories` | all | Comma-separated ids |
 | `-limit` | `0` | Max rows/category (`HFPACKS_INDEX_LIMIT` / `RUNHUG_INDEX_LIMIT`) |
 | `-min-likes` / `-min-downloads` | `3` / `100` | Quality floors |
+| `-format` | `sqlite` | `sqlite`, `csv`, `parquet` (comma-separated) |
 | `-sleep-ms` | `250` | Pause between Hub pages |
 | `-no-proxy` | off | Skip proxy pool |
-| `-switch-every` | `60` | Next proxy every N successful Hub calls |
-| `-proxy-batch` | `10` | Proxies kept per list fetch |
-| `-proxy-tries` | `50` | Max proxies to try per Hub page (`0` = keep trying / refetch lists) |
 | `-token` | `$HF_TOKEN` | Hub auth |
 
 ## Output (runhug-compatible)
@@ -94,8 +86,18 @@ export GEONODE_PROXY_URL='http://USER:PASS@proxy.geonode.io:9000'
 dist/index/
   index-manifest.json
   index-text-generation.db
+  index-text-generation.csv      # if -format includes csv
+  index-text-generation.parquet  # if -format includes parquet
   …
 ```
+
+Manifest pack entries include `rows`, optional `hub_total` (Hub category size at build),
+and `quality_skipped`. runhug `packs list` uses these for coverage % / remaining.
+
+`source_repo` defaults to `openhat-security/hfpacks`. CI
+(`.github/workflows/release-index-packs.yml`) builds packs and uploads them to
+**this** repo’s Releases only — never to runhug. runhug points here by default
+(`RUNHUG_PACKS_REPO` override).
 
 ## Why Go
 

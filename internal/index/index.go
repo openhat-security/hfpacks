@@ -135,3 +135,40 @@ func (idx *Index) HasModel(id string) (bool, error) {
 func (idx *Index) Path() string {
 	return idx.path
 }
+
+// ModelRow is one models table row for export.
+type ModelRow struct {
+	ID           string
+	Author       string
+	Description  string
+	Tags         string
+	Likes        int
+	Downloads    int64
+	LibraryName  string
+	License      string
+	PipelineTag  string
+	LastModified int64
+}
+
+// AllRows returns every model row (for csv/parquet export).
+func (idx *Index) AllRows() ([]ModelRow, error) {
+	rows, err := idx.db.Query(`
+		SELECT id, COALESCE(author,''), COALESCE(description,''), COALESCE(tags,''),
+			likes, downloads, COALESCE(library_name,''), COALESCE(license,''),
+			COALESCE(pipeline_tag,''), COALESCE(last_modified,0)
+		FROM models ORDER BY downloads DESC, id ASC`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []ModelRow
+	for rows.Next() {
+		var r ModelRow
+		if err := rows.Scan(&r.ID, &r.Author, &r.Description, &r.Tags, &r.Likes, &r.Downloads,
+			&r.LibraryName, &r.License, &r.PipelineTag, &r.LastModified); err != nil {
+			return nil, err
+		}
+		out = append(out, r)
+	}
+	return out, rows.Err()
+}

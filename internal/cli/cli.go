@@ -16,10 +16,11 @@ import (
 	"github.com/openhat-security/hfpacks/internal/proxy"
 )
 
-const usage = `hfpacks - Hugging Face Hub → category SQLite packs (for runhug)
+const usage = `hfpacks - Hugging Face Hub → local index packs (producer for runhug)
 
 usage:
-  hfpacks build [flags]                    crawl Hub, write index-*.db + index-manifest.json
+  hfpacks build [flags]                    crawl Hub, write packs + index-manifest.json
+  hfpacks export [flags]                   convert existing index-*.db → csv / parquet
   hfpacks upsert <org/model>... [flags]    fetch named models and upsert into a SQLite index
   hfpacks categories                       list category ids
   hfpacks help                             show this message
@@ -32,12 +33,17 @@ build flags:
   -min-downloads int    quality floor (default 100)
   -sleep-ms int         pause between pages (default 250)
   -full                 request Hub expand fields (default true)
+  -format string        sqlite,csv,parquet (comma-separated; default sqlite)
   -no-proxy             connect directly (skip auto proxy pool)
   -token string         HF token (else HF_TOKEN env)
   -switch-every int     next proxy every N Hub calls (default 60)
   -proxy-batch int      proxies to keep per fetch (default 10)
   -proxy-tries int      max proxies to try per Hub page (default 50; 0 = keep trying)
-  -source-repo string   manifest source_repo (default openhat-security/runhug)
+  -source-repo string   manifest source_repo (default openhat-security/hfpacks)
+
+export flags:
+  -out string           directory with index-*.db (default "dist/index")
+  -format string        csv,parquet (default csv,parquet)
 
 upsert flags:
   -db string            SQLite path (e.g. ~/.config/runhug/models.db)
@@ -56,10 +62,9 @@ proxy (automated, no manual per-run URL required):
 
 examples:
   hfpacks build -out dist/index
-  hfpacks build -proxy-tries 0 -switch-every 1
-  hfpacks build -no-proxy -token $HF_TOKEN -categories text-generation,gguf
+  hfpacks build -format sqlite,csv,parquet -no-proxy -token $HF_TOKEN
+  hfpacks export -out dist/index -format csv,parquet
   hfpacks upsert Qwen/Qwen3-8B -db ~/.config/runhug/models.db
-  hfpacks upsert meta-llama/Llama-3.2-3B-Instruct -out dist/index -category text-generation
   hfpacks categories
 `
 
@@ -77,6 +82,8 @@ func Run(args []string) error {
 	switch cmd {
 	case "build":
 		return runBuild(args)
+	case "export":
+		return runExport(args)
 	case "upsert":
 		return runUpsert(args)
 	case "categories":
@@ -116,8 +123,13 @@ func runBuild(args []string) error {
 	proxyBatch := fs.Int("proxy-batch", 10, "proxies to keep per list fetch")
 	proxyTries := fs.Int("proxy-tries", 50, "max proxies to try per Hub page (0 = keep trying)")
 	sourceRepo := fs.String("source-repo", packs.DefaultSourceRepo, "manifest source_repo")
+	format := fs.String("format", packs.FormatSQLite, "output formats: sqlite,csv,parquet (comma-separated)")
 	if err := parseFlags(fs, args); err != nil {
 		return err
+	}
+	formats := packs.ParseFormats(*format)
+	if !packs.NeedsSQLite(formats) {
+		return fmt.Errorf("build always writes sqlite (runhug contract); include sqlite in -format or omit -format")
 	}
 
 	tok := strings.TrimSpace(*token)
@@ -182,7 +194,31 @@ func runBuild(args []string) error {
 	for _, p := range man.Packs {
 		fmt.Fprintf(os.Stderr, "    %s  rows=%d  %s\n", p.ID, p.Rows, p.DBFilename)
 	}
+	if err := packs.ExportSidecars(*out, formats); err != nil {
+		return fmt.Errorf("export sidecars: %w", err)
+	}
 	return nil
+}
+
+func runExport(args []string) error {
+	fs := newFlagSet("export")
+	out := fs.String("out", "dist/index", "directory containing index-*.db")
+	format := fs.String("format", "csv,parquet", "csv,parquet (comma-separated)")
+	if err := parseFlags(fs, args); err != nil {
+		return err
+	}
+	formats := packs.ParseFormats(*format)
+	var side []string
+	for _, f := range formats {
+		if f == packs.FormatCSV || f == packs.FormatParquet {
+			side = append(side, f)
+		}
+	}
+	if len(side) == 0 {
+		return fmt.Errorf("export needs -format csv and/or parquet")
+	}
+	fmt.Fprintf(os.Stderr, "[+] exporting from %s → %s\n", *out, strings.Join(side, ","))
+	return packs.ExportSidecars(*out, side)
 }
 
 func limitLabel(n int) string {

@@ -1,0 +1,78 @@
+# Build category SQLite index packs and upload them to a GitHub Release.
+# Triggers: release published, or manual workflow_dispatch (tag optional).
+#
+# Secrets: HF_TOKEN (recommended for Hub rate limits). GITHUB_TOKEN is provided.
+# Env: HFPACKS_INDEX_LIMIT / RUNHUG_INDEX_LIMIT caps rows per pack when set.
+name: Release index packs
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag to upload packs onto (e.g. v0.1.0). Leave empty to skip upload and only build artifacts.
+        required: false
+        default: ""
+      limit:
+        description: Max rows per category pack (0 = unlimited)
+        required: false
+        default: "0"
+      min_likes:
+        description: Minimum likes (models below are excluded)
+        required: false
+        default: "3"
+      min_downloads:
+        description: Minimum downloads (models below are excluded; early-stop when sorting by downloads)
+        required: false
+        default: "100"
+
+permissions:
+  contents: write
+
+jobs:
+  build-packs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+
+      - name: Build index packs
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HFPACKS_INDEX_LIMIT: ${{ github.event.inputs.limit || '0' }}
+        run: |
+          mkdir -p dist/index
+          LIMIT="${HFPACKS_INDEX_LIMIT}"
+          MIN_LIKES="${{ github.event.inputs.min_likes || '3' }}"
+          MIN_DOWNLOADS="${{ github.event.inputs.min_downloads || '100' }}"
+          go run ./cmd/hfpacks build -out dist/index -no-proxy \
+            -limit "${LIMIT}" \
+            -min-likes "${MIN_LIKES}" \
+            -min-downloads "${MIN_DOWNLOADS}" \
+            -format sqlite
+          ls -la dist/index
+          test -f dist/index/index-manifest.json
+
+      - name: Upload packs to release
+        if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && github.event.inputs.tag != '')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${{ github.event.release.tag_name || github.event.inputs.tag }}"
+          if [ -z "$TAG" ]; then
+            echo "No release tag; skipping upload"
+            exit 0
+          fi
+          gh release upload "$TAG" dist/index/index-manifest.json dist/index/index-*.db --clobber
+          echo "Uploaded index packs to $TAG"
+
+      - name: Upload build artifacts (dispatch without tag)
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.tag == ''
+        uses: actions/upload-artifact@v7
+        with:
+          name: index-packs
+          path: dist/index/

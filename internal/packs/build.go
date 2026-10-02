@@ -274,16 +274,57 @@ func buildOne(ctx context.Context, client *hf.Client, opts BuildOpts, cat Catego
 	}
 
 	return PackInfo{
-		ID:         cat.ID,
-		Title:      cat.Title,
-		Pipeline:   strings.Trim(pipeline, ","),
-		Filter:     cat.Filter,
-		Rows:       total,
-		SizeBytes:  fi.Size(),
-		SHA256:     sum,
-		DBFilename: dbName,
-		Watermark:  wm,
+		ID:             cat.ID,
+		Title:          cat.Title,
+		Pipeline:       strings.Trim(pipeline, ","),
+		Filter:         cat.Filter,
+		Rows:           total,
+		HubTotal:       estimateHubTotal(ctx, client, cat),
+		QualitySkipped: filterSkipped,
+		SizeBytes:      fi.Size(),
+		SHA256:         sum,
+		DBFilename:     dbName,
+		Watermark:      wm,
 	}, nil
+}
+
+// estimateHubTotal counts Hub models for the category (primary pipeline or filter).
+// Returns 0 on error so builds still succeed without coverage stats.
+func estimateHubTotal(ctx context.Context, client *hf.Client, cat Category) int {
+	task := cat.Pipeline
+	if task == "any" {
+		task = ""
+	}
+	n, err := client.CountModels(ctx, hf.ListOpts{
+		Task:     task,
+		Filter:   cat.Filter,
+		PageSize: 1000,
+		MaxPages: 200,
+		Sleep:    80 * time.Millisecond,
+	})
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "  [%s] hub total estimate failed: %v\n", cat.ID, err)
+		return 0
+	}
+	// Add extra pipelines (may over-count overlaps slightly — still useful).
+	for _, p := range cat.ExtraPipelines {
+		if p == "" || p == "any" || p == cat.Pipeline {
+			continue
+		}
+		extra, err := client.CountModels(ctx, hf.ListOpts{
+			Task:     p,
+			Filter:   cat.Filter,
+			PageSize: 1000,
+			MaxPages: 50,
+			Sleep:    80 * time.Millisecond,
+		})
+		if err != nil {
+			continue
+		}
+		n += extra
+	}
+	fmt.Fprintf(os.Stderr, "  [%s] hub_total≈%d\n", cat.ID, n)
+	return n
 }
 
 func limitLabel(n int) string {

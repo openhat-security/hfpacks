@@ -13,7 +13,7 @@ import (
 const (
 	ManifestVersion   = 1
 	ManifestFilename  = "index-manifest.json"
-	DefaultSourceRepo = "openhat-security/runhug"
+	DefaultSourceRepo = "openhat-security/hfpacks"
 )
 
 // Manifest lists category packs (runhug-compatible).
@@ -26,15 +26,17 @@ type Manifest struct {
 
 // PackInfo describes one release asset DB.
 type PackInfo struct {
-	ID         string `json:"id"`
-	Title      string `json:"title"`
-	Pipeline   string `json:"pipeline,omitempty"`
-	Filter     string `json:"filter,omitempty"`
-	Rows       int    `json:"rows"`
-	SizeBytes  int64  `json:"size_bytes"`
-	SHA256     string `json:"sha256"`
-	DBFilename string `json:"db_filename"`
-	Watermark  string `json:"watermark"`
+	ID             string `json:"id"`
+	Title          string `json:"title"`
+	Pipeline       string `json:"pipeline,omitempty"`
+	Filter         string `json:"filter,omitempty"`
+	Rows           int    `json:"rows"`
+	HubTotal       int    `json:"hub_total,omitempty"`       // Hub models matching category (approx at build)
+	QualitySkipped int    `json:"quality_skipped,omitempty"` // below min likes/downloads during build
+	SizeBytes      int64  `json:"size_bytes"`
+	SHA256         string `json:"sha256"`
+	DBFilename     string `json:"db_filename"`
+	Watermark      string `json:"watermark"`
 }
 
 // DBFilenameFor returns the release asset name for a category id.
